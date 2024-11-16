@@ -1,21 +1,31 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Depends
 from sqlmodel import Session, SQLModel, Field, select
 from typing import Annotated
-from .database import engine, create_db_and_tables
+from .database import create_db_and_tables, get_session
+from contextlib import asynccontextmanager
+from app.Hotel.routers import router
+from fastapi.middleware.cors import CORSMiddleware
 
+
+@asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Application startup")
     create_db_and_tables()
     yield
-
     print("Application shutdown")
 app = FastAPI(lifespan=lifespan)
 
-def get_db():
-    with Session(engine) as session:
-        yield session
+app.include_router(router)
 
-SessionDep = Annotated[Session, Depends(get_db)]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:8000/"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # DataBase Manual test
 class Item(SQLModel, table=True):
@@ -23,7 +33,7 @@ class Item(SQLModel, table=True):
     item_name: str = Field(index=True, default=None)
 
 @app.post('/create_item/')
-def create_item(db: SessionDep, item: Item):
+def create_item(item: Item, db: Session = Depends(get_session)):
     db_item = Item.model_validate(item)
     db.add(db_item)
     db.commit()
@@ -31,7 +41,14 @@ def create_item(db: SessionDep, item: Item):
     return db_item
 
 @app.get('/items/', response_model=list[Item])
-def read_items(db: SessionDep):
+def read_items(db: Session = Depends(get_session)):
     items = db.exec(select(Item)).all()
     return items
+
+@app.delete('/delete_item/{item_id}')
+def read_items(item_id: int, db: Session = Depends(get_session)):
+    item = db.get(Item, item_id)
+    db.delete(item)
+    db.commit()
+    return True
 
