@@ -19,6 +19,9 @@ class HotelGive(BaseModel):
 class HotelResponse(BaseModel):
     id: int
     hotel_name: str
+
+class Hotel(BaseModel):
+    id: int
     # hotel_amenities: list[HotelAmenityUpdate] | None = None
 
 

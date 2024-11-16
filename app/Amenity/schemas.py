@@ -12,6 +12,11 @@ class HotelAmenityUpdate(BaseModel):
     amenity_name: str | None = None
     amenity_cost: float | None = None
 
+class HotelAmenityFull(BaseModel):
+    id: int
+    amenity_name: str
+    amenity_cost: float
+
 class HotelAmenityResponse(BaseModel):
     id: int
     amenity_name: str
