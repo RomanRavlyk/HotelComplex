@@ -85,6 +85,8 @@ def change_hotel_amenity_in_db(amenity: HotelAmenityFull, hotel_id: Hotel, db: S
     db.commit()
     db.refresh(hotel_amenity)
 
+    update_cottage_amenities(hotel_amenity.id, hotel_amenity, db)
+
     return hotel_amenity
 
 
@@ -102,6 +104,9 @@ def delete_hotel_amenity(amenity_id: int, hotel: Hotel, db: Session):
 
     db.delete(hotel_amenity)
     db.commit()
+
+    delete_amenity_in_all_cottages(amenity_id, hotel.id, db)
+
     return True
 
 def add_amenity_to_cottage_db(cottage_id: int, amenity_id: int, db: Session):
@@ -172,6 +177,18 @@ def get_cottage_amenity_by_id_db(cottage_id: int, amenity_id: int, db: Session =
     return cottage_amenity
 
 
+def update_cottage_amenities(amenity_id: int, updated_data: HotelAmenityDB, db: Session):
+    cottage_amenities = db.exec(
+        select(CottageAmenityDB).where(CottageAmenityDB.id == amenity_id)
+    ).all()
+
+    for cottage_amenity in cottage_amenities:
+        for key, value in updated_data.model_dump().items():
+            if hasattr(cottage_amenity, key):
+                setattr(cottage_amenity, key, value)
+
+    db.commit()
+
 def delete_cottage_amenity(amenity_id: int, cottage_id: int, db: Session) -> bool:
     query = select(CottageAmenityDB).where(
         CottageAmenityDB.id == amenity_id,
@@ -186,3 +203,20 @@ def delete_cottage_amenity(amenity_id: int, cottage_id: int, db: Session) -> boo
     db.delete(cottage_amenity)
     db.commit()
     return True
+
+def delete_amenity_in_all_cottages(amenity_id: int, hotel_id: int, db: Session):
+    cottages = db.exec(select(CottageDB).where(CottageDB.hotel_id == hotel_id)).all()
+    if not cottages:
+        raise HTTPException(status_code=404, detail="No cottages found for this hotel")
+
+    for cottage in cottages:
+        cottage_amenities = db.exec(
+            select(CottageAmenityDB)
+            .where(CottageAmenityDB.id == amenity_id)
+            .where(CottageAmenityDB.cottage_id == cottage.id)
+        ).all()
+
+        for amenity in cottage_amenities:
+            db.delete(amenity)
+
+    db.commit()
