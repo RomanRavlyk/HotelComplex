@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.Hotel.models import HotelDB
+    from app.Cottage.models import CottageDB
 
 class AmenityBase(SQLModel):
     amenity_name: str = Field(default=None, index=True)
@@ -15,7 +16,8 @@ class HotelAmenityDB(AmenityBase, table=True):
     hotel: "HotelDB" = Relationship(back_populates="amenities")
 
 
-# class CottageAmenityDB(AmenityBase, table=True):
-#     id: int = Field(primary_key=True, default=None)
-#     cottage_id: int = Field(foreign_key='cottage.id')
-#     cottage: CottageDB | None = Relationship(back_populates="amenity")
+class CottageAmenityDB(AmenityBase, table=True):
+    __tablename__ = "cottage_amenity"
+    id: int = Field(primary_key=True, default=None)
+    cottage_id: int = Field(foreign_key='cottage.id')
+    cottage: "CottageDB" = Relationship(back_populates="amenities")

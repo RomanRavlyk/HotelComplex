@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi.exceptions import HTTPException
-from app.Amenity.schemas import HotelAmenityUpdate, HotelAmenityFull
+from app.Amenity.schemas import HotelAmenityFull
 from fastapi import APIRouter
 from fastapi.params import Depends, Body, Query
 
@@ -9,18 +9,19 @@ from sqlmodel import Session
 from starlette.responses import JSONResponse
 
 from app.Amenity.service import (change_hotel_amenity_in_db, delete_hotel_amenity,
-                                 create_hotel_amenity, get_all_hotel_amenities, get_hotel_amenity_by_id)
+                                 create_hotel_amenity, get_all_hotel_amenities, get_hotel_amenity_by_id
+                                 )
+
 from app.Hotel.schemas import HotelBase, HotelResponse, HotelGive, Hotel
-from app.Hotel.service import (
-    create_hotel,
-    get_hotel_db,
-    get_all_hotels_in_db,
-    update_hotel_in_db,
-    delete_hotel_from_db,
-)
+
+from app.Hotel.service import (create_hotel, get_hotel_db,
+                               get_all_hotels_in_db, update_hotel_in_db,
+                               delete_hotel_from_db, get_hotel_cottages
+                               )
 
 from .models import HotelDB
 from ..Amenity.models import HotelAmenityDB
+from ..Cottage.schemas import CottageResponse
 from ..database import get_session
 from ..Amenity.schemas import HotelAmenityCreate, HotelAmenityResponse
 router = APIRouter(tags=["hotel"])
@@ -66,6 +67,14 @@ async def delete_hotel(hotel: HotelGive, db: Session = Depends(get_session)):
         response: bool = delete_hotel_from_db(hotel, db)
         if response:
             return JSONResponse({"message": "Hotel deleted"})
+    except HTTPException as e:
+        return JSONResponse({"message": str(e)})
+
+@router.get("/get_hotel_cottages/", response_model=list[CottageResponse])
+async def get_cottages(hotel: Annotated[Hotel, Query()], db: Session = Depends(get_session)):
+    try:
+        cottages = get_hotel_cottages(hotel, db)
+        return cottages
     except HTTPException as e:
         return JSONResponse({"message": str(e)})
 

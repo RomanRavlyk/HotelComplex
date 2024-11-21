@@ -1,13 +1,10 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, Depends
 from sqlmodel import Session, SQLModel, Field, select
-from typing import Annotated
 from .database import create_db_and_tables, get_session
 from contextlib import asynccontextmanager
-from app.Hotel.routers import router
+from app.Hotel.routers import router as hotel_router
 from fastapi.middleware.cors import CORSMiddleware
-
+from app.Cottage.routers import router as cottage_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,7 +14,8 @@ async def lifespan(app: FastAPI):
     print("Application shutdown")
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(router)
+app.include_router(hotel_router)
+app.include_router(cottage_router)
 
 app.add_middleware(
     CORSMiddleware,

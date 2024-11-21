@@ -1,18 +1,16 @@
 from fastapi import Query, HTTPException, Depends
-from fastapi.responses import JSONResponse
 from typing import Annotated
 
 from starlette import status
 
-from .schemas import HotelAmenityCreate, HotelAmenityUpdate, HotelAmenityResponse, HotelAmenityFull, CottageAmenityCreate, CottageAmenityUpdate, CottageAmenityResponse
+from .schemas import HotelAmenityCreate, HotelAmenityFull, CottageAmenityResponse
 from sqlmodel import select, Session
 
+from ..Cottage.models import CottageDB
 from ..Hotel.schemas import Hotel
 from ..database import get_session
 from app.Hotel.models import HotelDB
-from app.Amenity.models import HotelAmenityDB
-# from app.Amenity.models import CottageAmenityDB
-# from ..Cottage.models import Cottage
+from app.Amenity.models import HotelAmenityDB, CottageAmenityDB
 
 def create_hotel_amenity(amenity: HotelAmenityCreate, hotel_id: int, db: Session) -> HotelAmenityDB: #good
 
@@ -105,82 +103,86 @@ def delete_hotel_amenity(amenity_id: int, hotel: Hotel, db: Session):
     db.delete(hotel_amenity)
     db.commit()
     return True
-#
-# # def create_cottage_amenity(amenity: CottageAmenityCreate, db: Session = Depends(get_session)):
-# #     amenity_db = CottageAmenityDB.model_validate(amenity)
-# #     db.add(amenity_db)
-# #     db.commit()
-# #     db.refresh(amenity_db)
-# #     return {"message": "Cottage amenity successfully created", "amenity":
-# #         CottageAmenityResponse.model_validate(amenity_db)
-# #     }
-# #
-# #
-# # def get_cottage_amenity(cottage: Cottage, offset: int = 0, limit: Annotated[int, Query(le=100)] = 100, db: Session = Depends(get_session)) -> list[CottageAmenityResponse]: #should return list of HotelAmenityResponse
-# #     query_set = (
-# #         select(CottageAmenityDB)
-# #         .where(CottageAmenityDB.cottage_id == cottage.id)
-# #         .offset(offset)
-# #         .limit(limit)
-# #     )
-# #
-# #     cottage_amenities = db.exec(query_set).all()
-# #
-# #     response_list = []
-# #     for amenity in cottage_amenities:
-# #         response_list.append(CottageAmenityResponse.model_validate(amenity))
-# #
-# #     return response_list
-# #
-# #
-# # def get_cottage_amenity_by_id(amenity_id: int, cottage: Cottage, db: Session = Depends(get_session)) -> CottageAmenityResponse: #should return HotelAmenityResponse
-# #     query = select(CottageAmenityDB).where(
-# #         CottageAmenityDB.id == amenity_id,
-# #         CottageAmenityDB.cottage_id == cottage.id,
-# #     )
-# #
-# #     cottage_amenity = db.exec(query).first()
-# #
-# #     if not cottage_amenity:
-# #         raise HTTPException(status_code=404, detail="Cottage Amenity Not Found")
-# #
-# #     return CottageAmenityResponse.model_validate(cottage_amenity)
-# #
-# #
-# # def change_cottage_amenity(amenity_id: int, amenity: CottageAmenityUpdate, cottage: Cottage, db: Session = Depends(get_session)) -> CottageAmenityResponse: #should return HotelAmenityResponse
-# #     query = select(CottageAmenityDB).where(
-# #         CottageAmenityDB.id == amenity_id,
-# #         CottageAmenityDB.cottage_id == cottage.id,
-# #     )
-# #
-# #     cottage_amenity = db.exec(query).first()
-# #
-# #
-# #     if not cottage_amenity:
-# #         raise HTTPException(status_code=404, detail="Amenity not found")
-# #
-# #     data_for_update = amenity.model_dump(exclude_unset=True)
-# #
-# #     cottage_amenity.update(**data_for_update)
-# #
-# #     db.add(cottage_amenity)
-# #     db.commit()
-# #     db.refresh(cottage_amenity)
-# #
-# #     return CottageAmenityResponse.model_validate(cottage_amenity)
-# #
-# #
-# # def delete_cottage_amenity(amenity_id: int, cottage: Cottage, db: Session = Depends(get_session)):
-# #     query = select(CottageAmenityDB).where(
-# #         CottageAmenityDB.id == amenity_id,
-# #         CottageAmenityDB.cottage_id == cottage.id,
-# #     )
-# #
-# #     cottage_amenity = db.exec(query).first()
-# #
-# #     if not cottage_amenity:
-# #         raise HTTPException(status_code=404, detail="Amenity not found")
-# #
-# #     db.delete(cottage_amenity)
-# #     db.commit()
-# #     return {"message": "Successfully deleted cottage amenity"}
+
+def add_amenity_to_cottage_db(cottage_id: int, amenity_id: int, db: Session):
+    amenity_db = db.exec(select(CottageAmenityDB).where((CottageAmenityDB.id == amenity_id) & (CottageAmenityDB.cottage_id == cottage_id))).first()
+    if amenity_db:
+        raise HTTPException(status_code=409, detail="This amenity already exists")
+
+    cottage = db.exec(select(CottageDB).where(CottageDB.id == cottage_id)).first()
+    if not cottage:
+        raise HTTPException(status_code=404, detail="Cottage not found")
+
+    hotel = db.exec(select(HotelDB).where(HotelDB.id == cottage.hotel_id)).first()
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Hotel not found")
+
+    amenities = get_all_hotel_amenities(hotel.id, db)
+
+    selected_amenity = None
+    for amenity in amenities:
+        if amenity.id == amenity_id:
+            selected_amenity = amenity
+            break
+
+    if not selected_amenity:
+        raise HTTPException(status_code=404, detail="Amenity not available for this hotel")
+
+    new_cottage_amenity = CottageAmenityDB(
+        id=selected_amenity.id,
+        amenity_name=selected_amenity.amenity_name,
+        amenity_cost=selected_amenity.amenity_cost,
+        cottage_id=cottage_id,
+        cottage=cottage
+    )
+
+    db.add(new_cottage_amenity)
+    db.commit()
+    db.refresh(new_cottage_amenity)
+
+    return new_cottage_amenity
+
+def get_cottage_amenities_db(cottage_id: int, db: Session, offset: int = 0, limit: Annotated[int, Query(le=100)] = 100) -> list[CottageAmenityResponse]: #should return list of HotelAmenityResponse
+    query_set = (
+        select(CottageAmenityDB)
+        .where(CottageAmenityDB.cottage_id == cottage_id)
+        .offset(offset)
+        .limit(limit)
+    )
+
+    cottage_amenities = db.exec(query_set).all()
+
+    response_list = []
+    for amenity in cottage_amenities:
+        response_list.append(CottageAmenityResponse.model_validate(amenity))
+
+    return response_list
+
+def get_cottage_amenity_by_id_db(cottage_id: int, amenity_id: int, db: Session = Depends(get_session)) -> CottageAmenityDB: #should return HotelAmenityResponse
+    query = select(CottageAmenityDB).where(
+        CottageAmenityDB.id == amenity_id,
+        CottageAmenityDB.cottage_id == cottage_id,
+    )
+
+    cottage_amenity = db.exec(query).first()
+
+    if not cottage_amenity:
+        raise HTTPException(status_code=404, detail="Cottage Amenity Not Found")
+
+    return cottage_amenity
+
+
+def delete_cottage_amenity(amenity_id: int, cottage_id: int, db: Session) -> bool:
+    query = select(CottageAmenityDB).where(
+        CottageAmenityDB.id == amenity_id,
+        CottageAmenityDB.cottage_id == cottage_id,
+    )
+
+    cottage_amenity = db.exec(query).first()
+
+    if not cottage_amenity:
+        raise HTTPException(status_code=404, detail="Amenity not found")
+
+    db.delete(cottage_amenity)
+    db.commit()
+    return True

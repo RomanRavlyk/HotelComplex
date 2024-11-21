@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field
-from typing import Annotated
 
 class AmenityBase(BaseModel):
     amenity_name: str

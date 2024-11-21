@@ -1,10 +1,11 @@
 from fastapi import HTTPException
 from sqlmodel import Session
-from sqlmodel import SQLModel, select
+from sqlmodel import select
 from starlette import status
-from .schemas import HotelBase, HotelGive
+from .schemas import HotelBase, HotelGive, Hotel
 from .models import HotelDB
 
+from app.Cottage.models import CottageDB
 
 def create_hotel(hotel: HotelBase, db: Session) -> HotelDB: #good
     check_hotel_db=db.exec(select(HotelDB).where(HotelDB.hotel_name == hotel.hotel_name)).first()
@@ -75,3 +76,15 @@ def delete_hotel_from_db(hotel: HotelGive, db: Session) -> True:
     db.commit()
     return True
 
+def get_hotel_cottages(hotel: Hotel, db: Session) -> list[CottageDB]:
+    query = select(CottageDB).where(CottageDB.hotel_id == hotel.id)
+
+    cottages = db.exec(query).all()
+
+    if not cottages:
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cottages not found")
+
+    response = []
+    for cottage in cottages:
+        response.append(CottageDB.model_validate(cottage.model_dump()))
+    return response
