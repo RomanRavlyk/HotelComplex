@@ -2,7 +2,7 @@ from fastapi import Depends, HTTPException, Request, APIRouter
 from fastapi.responses import JSONResponse
 
 from .models import SessionDB
-from .service import create_session, get_session_db, delete_session, get_user_by_username, create_user, update_session_activity, is_session_active
+from .service import create_session, get_session_db, delete_session, get_user_by_username, create_user, update_session_activity, is_session_active, is_logged_in
 from app.database import get_session
 import os
 from dotenv import load_dotenv
@@ -14,7 +14,7 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
-router = APIRouter()
+router = APIRouter(tags=["auth"], prefix="/auth")
 
 @router.post("/register")
 async def register(username: str, password: str, db: Session = Depends(get_session)):

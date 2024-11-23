@@ -1,8 +1,11 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+from typing import TYPE_CHECKING
+from sqlmodel import SQLModel, Field, Relationship
 
-from sqlmodel import SQLModel, Field
+if TYPE_CHECKING:
+    from app.Booking.models import Booking
 
 class UserDB(SQLModel, table=True):
     __tablename__ = "users"
@@ -10,6 +13,7 @@ class UserDB(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(unique=True)
     hashed_password: str = Field(nullable=False)
+    bookings: list["Booking"] = Relationship(back_populates="user")
 
 class SessionDB(SQLModel, table=True):
     __tablename__ = "sessions"

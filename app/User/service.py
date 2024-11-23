@@ -3,7 +3,6 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
 from sqlmodel import select, Session
-from starlette.requests import Request
 
 from .models import SessionDB, UserDB
 from app.auth.utils import hash_password
@@ -56,8 +55,7 @@ def is_session_active(session: SessionDB) -> bool:
     return datetime.now(timezone.utc) - session.last_activity_at < SESSION_TIMEOUT
 
 
-async def is_logged_in(request: Request, db: Session):
-    session_id = request.cookies.get("session_id")
+async def is_logged_in(session_id , db: Session):
 
     if not session_id:
         raise HTTPException(status_code=401, detail="Not logged in. Session ID not found.")
@@ -66,6 +64,9 @@ async def is_logged_in(request: Request, db: Session):
 
     if not session:
         raise HTTPException(status_code=401, detail="Invalid session.")
+
+    if session.created_at.tzinfo is None:
+        session.created_at = session.created_at.replace(tzinfo=timezone.utc)
 
     if datetime.now(timezone.utc) - session.created_at > SESSION_TIMEOUT:
         raise HTTPException(status_code=401, detail="Session expired.")
