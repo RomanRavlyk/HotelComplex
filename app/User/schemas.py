@@ -1,15 +1,9 @@
-from typing import Annotated
 from pydantic import BaseModel
 
-from ..Booking.models import Booking
-
-
-class User(BaseModel):
+class CreateUser(BaseModel):
     username: str
-    firstname: str | None = None
-    lastname: str | None = None
-    bookings: list[Booking] | None = None
+    password: str
 
-class UserInDB(User):
-    hashed_password: str
-
+class UserResponse(BaseModel):
+    username: str
+    user_id: int

@@ -16,7 +16,7 @@ from app.Amenity.service import (add_amenity_to_cottage_db, get_cottage_amenitie
                                  get_cottage_amenity_by_id_db, delete_cottage_amenity
                                  )
 
-router = APIRouter(tags=["cottage"])
+router = APIRouter(prefix="/cottage", tags=["cottage"])
 
 @router.post("/create_cottage/", response_model=CottageResponse)
 def create_cottage(cottage: CottageBase, session: Session = Depends(get_session)):

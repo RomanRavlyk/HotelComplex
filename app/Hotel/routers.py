@@ -24,7 +24,7 @@ from ..Amenity.models import HotelAmenityDB
 from ..Cottage.schemas import CottageResponse
 from ..database import get_session
 from ..Amenity.schemas import HotelAmenityCreate, HotelAmenityResponse
-router = APIRouter(tags=["hotel"])
+router = APIRouter(prefix="/hotel", tags=["hotel"])
 
 @router.post("/create_hotel/", response_model=HotelResponse) #good
 async def create_hotel_request(hotel_db: HotelBase, session: Session = Depends(get_session)):
