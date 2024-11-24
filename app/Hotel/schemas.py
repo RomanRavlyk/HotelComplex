@@ -15,6 +15,7 @@ class HotelResponse(BaseModel):
 class Hotel(BaseModel):
     id: int
 
-
-
-
+class HotelStatsResponse(BaseModel):
+    hotel_id: int
+    income: float
+    expenses: float

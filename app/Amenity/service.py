@@ -3,9 +3,9 @@ from typing import Annotated
 
 from starlette import status
 
-from .schemas import HotelAmenityCreate, HotelAmenityFull, CottageAmenityResponse
+from .schemas import HotelAmenityCreate, HotelAmenityFull, CottageAmenityResponse, HotelAmenityResponse
 from sqlmodel import select, Session
-
+from app.Hotel.service import plus_hotel_stats, minus_hotel_stats
 from ..Cottage.models import CottageDB
 from ..Hotel.schemas import Hotel
 from ..database import get_session
@@ -138,30 +138,45 @@ def add_amenity_to_cottage_db(cottage_id: int, amenity_id: int, db: Session):
         amenity_name=selected_amenity.amenity_name,
         amenity_cost=selected_amenity.amenity_cost,
         cottage_id=cottage_id,
-        cottage=cottage
+        cottage=cottage,
+        plus_children=selected_amenity.plus_children,
+        plus_adults=selected_amenity.plus_adults
     )
 
     db.add(new_cottage_amenity)
     db.commit()
     db.refresh(new_cottage_amenity)
 
+    cottage.childs += new_cottage_amenity.plus_children
+    cottage.adults += new_cottage_amenity.plus_adults
+    db.commit()
+
+    plus_hotel_stats(db, hotel.id, new_cottage_amenity.amenity_cost, 0.0)
+    db.refresh(new_cottage_amenity)
     return new_cottage_amenity
 
-def get_cottage_amenities_db(cottage_id: int, db: Session, offset: int = 0, limit: Annotated[int, Query(le=100)] = 100) -> list[CottageAmenityResponse]: #should return list of HotelAmenityResponse
-    query_set = (
-        select(CottageAmenityDB)
-        .where(CottageAmenityDB.cottage_id == cottage_id)
-        .offset(offset)
-        .limit(limit)
-    )
-
-    cottage_amenities = db.exec(query_set).all()
-
-    response_list = []
+def get_cottage_amenities_db(cottage_id: int, db: Session):
+    cottage_amenities = db.exec(select(CottageAmenityDB).where(CottageAmenityDB.cottage_id == cottage_id)).all()
+    amenities_cottage = []
     for amenity in cottage_amenities:
-        response_list.append(CottageAmenityResponse.model_validate(amenity))
+        amenities_cottage.append(CottageAmenityResponse.model_validate(amenity))
 
-    return response_list
+    cottage = db.exec(select(CottageDB).where(CottageDB.id == cottage_id)).first()
+    if not cottage:
+        raise HTTPException(status_code=404, detail="Cottage not found")
+
+    hotel_amenities_query = (
+        select(HotelAmenityDB)
+        .where(HotelAmenityDB.hotel_id == cottage.hotel_id)
+    )
+    hotel_amenities = db.exec(hotel_amenities_query).all()
+    amenities_hotel = [
+        HotelAmenityResponse.model_validate(amenity) for amenity in hotel_amenities
+    ]
+
+    return {"cottage_amenities": amenities_cottage, "hotel_amenities": amenities_hotel}
+
+
 
 def get_cottage_amenity_by_id_db(cottage_id: int, amenity_id: int, db: Session = Depends(get_session)) -> CottageAmenityDB: #should return HotelAmenityResponse
     query = select(CottageAmenityDB).where(
@@ -186,6 +201,8 @@ def update_cottage_amenities(amenity_id: int, updated_data: HotelAmenityDB, db: 
         for key, value in updated_data.model_dump().items():
             if hasattr(cottage_amenity, key):
                 setattr(cottage_amenity, key, value)
+                plus_hotel_stats(db, cottage_amenity.hotel_id, value, 0.0)
+
 
     db.commit()
 
@@ -200,8 +217,14 @@ def delete_cottage_amenity(amenity_id: int, cottage_id: int, db: Session) -> boo
     if not cottage_amenity:
         raise HTTPException(status_code=404, detail="Amenity not found")
 
+    cottage = db.exec(select(CottageDB).where(CottageDB.id == cottage_id)).first()
+
+    cottage.childs -= cottage_amenity.plus_children
+    cottage.adults -= cottage_amenity.plus_adults
+
     db.delete(cottage_amenity)
     db.commit()
+    minus_hotel_stats(db, cottage_amenity.hotel_id, cottage_amenity.amenity_cost, 0.0)
     return True
 
 def delete_amenity_in_all_cottages(amenity_id: int, hotel_id: int, db: Session):
@@ -217,6 +240,12 @@ def delete_amenity_in_all_cottages(amenity_id: int, hotel_id: int, db: Session):
         ).all()
 
         for amenity in cottage_amenities:
+            cottage.childs -= amenity.plus_children
+            cottage.adults -= amenity.plus_adults
+
             db.delete(amenity)
 
+        db.add(cottage)
+
     db.commit()
+

@@ -8,6 +8,8 @@ if TYPE_CHECKING:
 class AmenityBase(SQLModel):
     amenity_name: str = Field(default=None, index=True)
     amenity_cost: float = Field(default=None, nullable=True)
+    plus_adults: int = Field(default=None, nullable=True)
+    plus_children: int = Field(default=None, nullable=True)
 
 class HotelAmenityDB(AmenityBase, table=True):
     __tablename__ = "hotel_amenity"

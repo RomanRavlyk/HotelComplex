@@ -12,11 +12,12 @@ from app.Amenity.service import (change_hotel_amenity_in_db, delete_hotel_amenit
                                  create_hotel_amenity, get_all_hotel_amenities, get_hotel_amenity_by_id
                                  )
 
-from app.Hotel.schemas import HotelBase, HotelResponse, HotelGive, Hotel
+from app.Hotel.schemas import HotelBase, HotelResponse, HotelGive, Hotel, HotelStatsResponse
 
 from app.Hotel.service import (create_hotel, get_hotel_db,
                                get_all_hotels_in_db, update_hotel_in_db,
-                               delete_hotel_from_db, get_hotel_cottages
+                               delete_hotel_from_db, get_hotel_cottages,
+                               get_hotel_stats
                                )
 
 from .models import HotelDB
@@ -33,7 +34,7 @@ async def create_hotel_request(hotel_db: HotelBase, session: Session = Depends(g
         hotel_data = hotel.model_dump()
         return HotelResponse.model_validate(hotel_data)
     except HTTPException as e:
-        return {"message": str(e)}
+        return JSONResponse({"message": str(e)})
 
 @router.get("/get_hotel/", response_model=HotelResponse)
 async def get_hotel(hotel_in: Annotated[HotelBase, Query()], session: Session = Depends(get_session)):
@@ -49,6 +50,14 @@ async def get_hotels(db: Session = Depends(get_session), offset: int = 0, limit:
     try:
         hotels: list[HotelDB] = get_all_hotels_in_db(db, offset=offset, limit=limit)
         return hotels
+    except HTTPException as e:
+        return JSONResponse({"message": str(e)})
+
+@router.get("/get_hotel_stats/", response_model=HotelStatsResponse)
+async def get_stats(hotel_id: int, db: Session = Depends(get_session)):
+    try:
+        stats = get_hotel_stats(hotel_id, db)
+        return stats
     except HTTPException as e:
         return JSONResponse({"message": str(e)})
 
