@@ -86,7 +86,7 @@ def delete_hotel_from_db(hotel: HotelGive, db: Session) -> True:
 
     if not hotel_db:
         raise HTTPException(status_code=404, detail="Hotel not found")
-
+    delete_hotel_stats(hotel_db.id, db)
     db.delete(hotel_db)
     db.commit()
     return True
@@ -135,3 +135,14 @@ def get_hotel_stats(hotel_id: int, db: Session) -> HotelStatsDB:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Hotel stats not found")
 
     return stats
+
+def delete_hotel_stats(hotel_id: int, db: Session):
+    stats = db.exec(select(HotelStatsDB).where(HotelStatsDB.hotel_id == hotel_id)).first()
+
+    if stats:
+        db.delete(stats)
+        db.commit()
+        return True
+    else:
+        return False
+

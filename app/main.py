@@ -25,7 +25,7 @@ app.include_router(user_router)
 
 app.include_router(booking_router)
 
-app.add_middleware(SessionMiddleware)
+# app.add_middleware(SessionMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

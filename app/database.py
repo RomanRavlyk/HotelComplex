@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings
 from app.Hotel.models import HotelDB
 from app.Cottage.models import CottageDB
 from app.Amenity.models import HotelAmenityDB, CottageAmenityDB
+from pydantic import ConfigDict
 
 class Settings(BaseSettings):
     DATABASE_URL: str

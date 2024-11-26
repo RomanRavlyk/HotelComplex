@@ -19,6 +19,8 @@ class HotelAmenityFull(BaseModel):
     id: int
     amenity_name: str
     amenity_cost: float
+    plus_adults: int
+    plus_children: int
 
 class HotelAmenityResponse(BaseModel):
     id: int

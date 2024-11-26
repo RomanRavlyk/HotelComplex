@@ -12,7 +12,16 @@ class AvailabilityRequest(BaseModel):
     start_date: datetime
     end_date: datetime
 
+class BookingChange(BaseModel):
+    id: int
+    user_id: int
+    cottage_id: int
+    start_date: datetime
+    end_date: datetime
+
+
 class BookingResponse(BaseModel):
+    id: int
     user_id: int
     cottage_id: int
     start_date: datetime

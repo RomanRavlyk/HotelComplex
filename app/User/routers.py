@@ -1,4 +1,6 @@
-from fastapi import Depends, HTTPException, Request, APIRouter
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Request, APIRouter, Body
 from fastapi.responses import JSONResponse
 
 from .models import SessionDB
@@ -17,17 +19,17 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 router = APIRouter(tags=["auth"], prefix="/auth")
 
 @router.post("/register")
-async def register(username: str, password: str, db: Session = Depends(get_session)):
+async def register(username: Annotated[str, Body()], password: Annotated[str, Body()], db: Session = Depends(get_session)):
     existing_user = get_user_by_username(db, username)
     if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="User already registered")
 
     new_user = create_user(db, username, password)
     return {"message": "User registered successfully", "user": {"id": new_user.id, "username": new_user.username}}
 
 
 @router.post("/login")
-async def login(username: str, password: str, db: Session = Depends(get_session)):
+async def login(username: Annotated[str, Body()], password: Annotated[str, Body()], db: Session = Depends(get_session)):
 
     user = get_user_by_username(db, username)
     if not user:

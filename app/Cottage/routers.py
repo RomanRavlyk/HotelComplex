@@ -100,13 +100,13 @@ async def get_cottage_amenities(cottage_id: Annotated[int, Query()], db: Session
 @router.get("/get_cottage_amenity/", response_model=CottageAmenityResponse)
 async def get_cottage_amenity_by_id(cottage_id: int, amenity_id: int, db: Annotated[Session, Depends(get_session)]):
     try:
-        amenity = get_cottage_amenity_by_id_db(cottage_id, cottage_id, db)
+        amenity = get_cottage_amenity_by_id_db(cottage_id, amenity_id, db)
         return CottageAmenityResponse.model_validate(amenity)
     except HTTPException as e:
         return JSONResponse({"message": str(e)})
 
 @router.delete("/delete_cottage_amenity/")
-async def change_cottage_amenity(amenity_id: int, cottage_id: int, db: Annotated[Session, Depends(get_session)]):
+async def delete_cottage_amenity(amenity_id: int, cottage_id: int, db: Annotated[Session, Depends(get_session)]):
     try:
         response = delete_cottage_amenity(cottage_id, amenity_id, db)
         if response:

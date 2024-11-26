@@ -1,13 +1,13 @@
 from http.client import HTTPException
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 from typing import Annotated
 from sqlmodel import Session
 from starlette.responses import JSONResponse
 from app.Cottage.service import check_cottage_availability, get_available_periods_db
 from app.Booking.service import create_user_booking, get_user_bookings_db, change_user_booking_db, delete_booking_db, \
     get_user_booking_by_id_db
-from app.Booking.schemas import BookingSchema, AvailabilityRequest, BookingResponse
+from app.Booking.schemas import BookingSchema, AvailabilityRequest, BookingResponse, BookingChange
 from app.database import get_session
 
 router = APIRouter(tags=['Booking'], prefix='/booking')
@@ -38,7 +38,7 @@ async def get_user_booking_by_id(user_id: int, booking_id: int, db: Annotated[Se
 
 @router.post("/check_availability/")
 async def check_availability(
-    cottage_id: int,
+    cottage_id: Annotated[int, Body()],
     dates: AvailabilityRequest,
     session: Session = Depends(get_session)
 ):
@@ -61,7 +61,7 @@ async def get_available_periods(cottage_id: int, db: Session = Depends(get_sessi
     return {"cottage_id": cottage_id, "available_periods": periods}
 
 @router.put("/update_user_booking/", response_model=BookingResponse)
-async def change_user_booking(booking: BookingSchema, db: Session = Depends(get_session)):
+async def change_user_booking(booking: BookingChange, db: Session = Depends(get_session)):
     try:
         changed_booking = change_user_booking_db(booking, db)
         return changed_booking

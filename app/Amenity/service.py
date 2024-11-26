@@ -178,7 +178,7 @@ def get_cottage_amenities_db(cottage_id: int, db: Session):
 
 
 
-def get_cottage_amenity_by_id_db(cottage_id: int, amenity_id: int, db: Session = Depends(get_session)) -> CottageAmenityDB: #should return HotelAmenityResponse
+def get_cottage_amenity_by_id_db(cottage_id: int, amenity_id: int, db: Session = Depends(get_session)) -> CottageAmenityDB:
     query = select(CottageAmenityDB).where(
         CottageAmenityDB.id == amenity_id,
         CottageAmenityDB.cottage_id == cottage_id,
@@ -229,8 +229,9 @@ def delete_cottage_amenity(amenity_id: int, cottage_id: int, db: Session) -> boo
 
 def delete_amenity_in_all_cottages(amenity_id: int, hotel_id: int, db: Session):
     cottages = db.exec(select(CottageDB).where(CottageDB.hotel_id == hotel_id)).all()
+
     if not cottages:
-        raise HTTPException(status_code=404, detail="No cottages found for this hotel")
+        return None
 
     for cottage in cottages:
         cottage_amenities = db.exec(

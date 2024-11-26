@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from starlette.exceptions import HTTPException
 from app.Hotel.service import plus_hotel_stats, minus_hotel_stats
 from app.Booking.models import Booking
-from app.Booking.schemas import BookingSchema
+from app.Booking.schemas import BookingSchema, BookingChange
 from app.Cottage.models import CottageDB
 
 
@@ -62,7 +62,7 @@ def get_user_booking_by_id_db(user_id: int, booking_id: int, db: Session):
 
     return booking
 
-def change_user_booking_db(booking: BookingSchema, db: Session):
+def change_user_booking_db(booking: BookingChange, db: Session):
     get_booking = db.exec(select(Booking).where(Booking.user_id == booking.user_id,)).first()
     if not get_booking:
         raise HTTPException(status_code=404, detail="This booking does not exist")
@@ -70,22 +70,43 @@ def change_user_booking_db(booking: BookingSchema, db: Session):
     for key, value in booking.model_dump().items():
         setattr(get_booking, key, value)
 
-    if booking.end_date < booking.start_date:
-        raise HTTPException(status_code=404, detail="Invalid booking dates")
-    if booking.start_date < datetime.now() or booking.end_date < datetime.now():
-        raise HTTPException(status_code=404, detail="Invalid booking dates")
+    current_time = datetime.now(timezone.utc)
 
-    check_booking = db.exec(select(Booking).where(Booking.user_id == get_booking.user_id, Booking.cottage_id == get_booking.cottage_id,
-                                                  Booking.start_date == booking.start_date,
-                                                  Booking.end_date == booking.end_date)).first()
+    if booking.end_date < booking.start_date:
+        raise HTTPException(status_code=400, detail="End date cannot be earlier than start date")
+
+    if booking.start_date < current_time or booking.end_date < current_time:
+        raise HTTPException(status_code=400, detail="Booking dates cannot be in the past")
+
+    check_booking = db.exec(
+        select(Booking)
+        .where(
+            Booking.user_id == get_booking.user_id,
+            Booking.cottage_id == get_booking.cottage_id,
+            Booking.start_date == booking.start_date,
+            Booking.end_date == booking.end_date,
+            Booking.id != get_booking.id
+            )
+        ).first()
 
     if check_booking:
         raise HTTPException(status_code=409,detail="This booking already exists")
 
+    cottage = db.exec(select(CottageDB).where(CottageDB.id == get_booking.cottage_id)).first()
+    get_booking.cottage_cost = cottage.cost_per_day
+
     db.add(get_booking)
     db.commit()
     db.refresh(get_booking)
-    return booking
+
+    return {
+        "id": get_booking.id,
+        "user_id": get_booking.user_id,
+        "cottage_id": get_booking.cottage_id,
+        "start_date": get_booking.start_date,
+        "end_date": get_booking.end_date,
+        "cottage_cost": get_booking.cottage_cost
+    }
 
 def delete_booking_db(user_id: int, booking_id: int, db: Session):
     get_booking = db.exec(select(Booking).where(Booking.user_id == user_id,
@@ -93,7 +114,7 @@ def delete_booking_db(user_id: int, booking_id: int, db: Session):
     if not get_booking:
         raise HTTPException(status_code=404, detail="This booking does not exist")
 
-    cottage=db.exec(select(CottageDB).where(CottageDB.id == get_booking.cottage_id,))
+    cottage=db.exec(select(CottageDB).where(CottageDB.id == get_booking.cottage_id,)).first()
 
     db.delete(get_booking)
     db.commit()
